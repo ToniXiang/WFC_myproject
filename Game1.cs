@@ -74,8 +74,8 @@ namespace Project1
             };
             tileRules = new Dictionary<int, List<int>>()
             {
-                { TILE_WATER,new List<int>(){WATER,WATER,WATER, WATER } },
-                { TILE_GRASS,new List<int>(){GRASS,GRASS,GRASS,GRASS}},
+                { TILE_WATER,new List<int>(){ WATER,WATER,WATER, WATER } },
+                { TILE_GRASS,new List<int>(){ GRASS,GRASS,GRASS,GRASS} },
                 { TILE_FOREST,new List<int>() { FOREST, FOREST, FOREST, FOREST } },
                 { TILE_COAST_N,new List<int>() { GRASS, COAST_E, WATER, COAST_W }},
                 { TILE_COAST_E,new List<int>() { COAST_E, GRASS, COAST_E, WATER } },
@@ -145,8 +145,8 @@ namespace Project1
         private static World world;
         private static bool restart;
         private static string msg;
-        private static int sizeX = 50;
-        private static int sizeY = 30;
+        public static int sizeX = 50;
+        public static int sizeY = 30;
         private static int TILESIZE = 16;
         public Game1()
         {
@@ -184,6 +184,10 @@ namespace Project1
             previousTKeyState = currentTKeyState;
             base.Update(gameTime);
         }
+        private void draw(int x,int y,Texture2D texture, int tilename)
+        {
+            _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[tilename], Color.White);
+        }
         protected override void Draw(GameTime gameTime)
         {
             if (restart)
@@ -197,7 +201,6 @@ namespace Project1
                 GraphicsDevice.SetRenderTarget(renderTarget);
                 _spriteBatch.Begin();
                 GraphicsDevice.Clear(Color.CornflowerBlue);
-                int lowestEntropy = world.getLowestEntropy();
                 for (int y = 0; y < sizeY; y++)
                 {
                     for (int x = 0; x < sizeX; x++)
@@ -212,28 +215,12 @@ namespace Project1
                             _spriteBatch.End();
                             return;
                         }
-                        int tile_type = world.getPossibilities(y, x)[0];
-                        if (tile_entopy > 0)
+                        int tile_type = possibilities[0];
+                        if (tile_entopy <= 0)
                         {
-                            if (tile_entopy == 27)
-                            {
-                                _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_WATER], Color.White);
-                            }
-                            else if (tile_entopy >= 10)
-                            {
-                                _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_ROAD], Color.White);
-                            }
-                            else if (tile_entopy < 10)
-                            {
-                                _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_CITYROAD], Color.White);
-                            }
-                        }
-                        else
-                        {
-                            if (tile_type == 2 || tile_type >= 17) _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_FOREST], Color.White);
-                            else if (tile_type == 1 || tile_type >= 5) _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_GRASS], Color.White);
-                            else if (tile_type == 0) _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_WATER], Color.White);
-                            else _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[TileDef.TILE_ROAD], Color.White);
+                            if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
+                            else if (tile_type == 1 || tile_type >= 5) draw(x, y, texture, TileDef.TILE_GRASS);
+                            else if (tile_type == 0) draw(x, y, texture, TileDef.TILE_WATER);
                         }
                     }
                 }
@@ -251,7 +238,7 @@ namespace Project1
     {
         private int sizeX;
         private int sizeY;
-        public List<List<Tile>> tileRows;
+        private List<List<Tile>> tileRows;
         public World(int sizeY, int sizeX)
         {
             this.sizeY = sizeY;
@@ -281,26 +268,11 @@ namespace Project1
         }
         public int getEntropy(int y, int x) => tileRows[y][x].entropy;
         public List<int> getPossibilities(int y, int x) => tileRows[y][x].possibilities;
-        public int getLowestEntropy()
+        public Tile getTilesLowestEntropy()
         {
             int lowestEntropy = TileDef.tileRules.Keys.Count;
-            for(int y = 0; y < sizeY; y++)
-            {
-                for(int x = 0; x < sizeX; x++)
-                {
-                    int tileEntropy = tileRows[y][x].entropy;
-                    if (tileEntropy > 0 && tileEntropy < lowestEntropy)
-                    {
-                        lowestEntropy = tileEntropy;
-                    }
-                }
-            }
-            return lowestEntropy;
-        }
-        public List<Tile> getTilesLowestEntropy()
-        {
-            int lowestEntropy = TileDef.tileRules.Keys.Count;
-            List<Tile> tiles = new List<Tile>();
+            Tile tile = null;
+            int len = (int)1E5;
             for(int y = 0; y < sizeY; y++)
             {
                 for(int x = 0; x < sizeX; x++)
@@ -308,25 +280,27 @@ namespace Project1
                     int tileEntropy = tileRows[y][x].entropy;
                     if (tileEntropy > 0)
                     {
+                        int cur_len = Math.Abs(y - sizeY / 2) + Math.Abs(x - sizeX / 2);
                         if (tileEntropy < lowestEntropy)
                         {
-                            tiles.Clear();
+                            tile = tileRows[y][x];
+                            len = cur_len;
                             lowestEntropy = tileEntropy;
                         }
-                        if (tileEntropy == lowestEntropy)
+                        else if (tileEntropy == lowestEntropy && cur_len < len)
                         {
-                            tiles.Add(tileRows[y][x]);
+                            tile = tileRows[y][x];
+                            len = cur_len;
                         }
                     }
                 }
             }
-            return tiles;
+            return tile;
         }
         public bool waveFunctionCollapse()
         {
-            List<Tile> tilesLowestEntropy = getTilesLowestEntropy();
-            if (tilesLowestEntropy.Count == 0) return false;
-            Tile tileToCollapse = tilesLowestEntropy[TileDef.getRandom(tilesLowestEntropy.Count)];
+            Tile tileToCollapse = getTilesLowestEntropy();
+            if (tileToCollapse == null) return false;
             tileToCollapse.collapse();
             Stack<Tile> stack = new Stack<Tile>();
             stack.Push(tileToCollapse);
