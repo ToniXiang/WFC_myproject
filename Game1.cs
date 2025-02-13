@@ -45,6 +45,17 @@ namespace Project1
         public static int TILE_FOREST_ES2 = 26;
         public static int TILE_FOREST_SW2 = 27;
         public static int TILE_FOREST_WN2 = 28;
+        public static int TILE_ROAD_H = 29;
+        public static int TILE_ROAD_V = 30;
+        public static int TILE_ROAD_NE = 31;
+        public static int TILE_ROAD_ES = 32;
+        public static int TILE_ROAD_SW = 33;
+        public static int TILE_ROAD_WN = 34;
+        public static int TILE_ROAD_T_N = 35;
+        public static int TILE_ROAD_T_E = 36;
+        public static int TILE_ROAD_T_S = 37;
+        public static int TILE_ROAD_T_W = 38;
+        public static int TILE_HOUSE = 39;
         //  邊緣類型
         public static int WATER = 0;
         public static int GRASS = 1;
@@ -58,7 +69,8 @@ namespace Project1
         public static int FOREST_S = 9;
         public static int FOREST_W = 10;
         public static int ROAD = 11;
-        public static int CITYROAD = 12;
+        public static int BOAT = 12;
+        public static int HOUSE = 13;
         public static Dictionary<int, Rectangle> tileSprites;
         public static Dictionary<int, List<int>> tileRules;
         public static Dictionary<int, int> tileWeights;
@@ -70,7 +82,8 @@ namespace Project1
                 {TILE_GRASS,new Rectangle(16,0,16,16) },
                 {TILE_FOREST,new Rectangle(32,0,16,16) },
                 {TILE_ROAD,new Rectangle(48,0,16,16) },
-                {TILE_CITYROAD,new Rectangle(64,0,16,16) }
+                {TILE_CITYROAD,new Rectangle(64,0,16,16) },
+                {TILE_HOUSE,new Rectangle(0,0,16,16) },
             };
             tileRules = new Dictionary<int, List<int>>()
             {
@@ -101,6 +114,17 @@ namespace Project1
                 { TILE_FOREST_ES2,new List<int>() { FOREST_E, FOREST, FOREST, FOREST_S } },
                 { TILE_FOREST_SW2,new List<int>() { FOREST_W, FOREST_S, FOREST, FOREST } },
                 { TILE_FOREST_WN2,new List<int>() { FOREST, FOREST_N, FOREST_W, FOREST } },
+                { TILE_ROAD_H,   new List<int>() { GRASS, ROAD, GRASS, ROAD } },
+                { TILE_ROAD_V,   new List<int>() { ROAD, GRASS, ROAD, GRASS } },
+                { TILE_ROAD_NE,  new List<int>() { GRASS, ROAD, ROAD, GRASS } },
+                { TILE_ROAD_ES,  new List<int>() { GRASS, GRASS, ROAD, ROAD } },
+                { TILE_ROAD_SW,  new List<int>() { ROAD, GRASS, GRASS, ROAD } },
+                { TILE_ROAD_WN,  new List<int>() { ROAD, ROAD, GRASS, GRASS } },
+                { TILE_ROAD_T_N, new List<int>() { ROAD, ROAD, ROAD, GRASS } },
+                { TILE_ROAD_T_E, new List<int>() { GRASS, ROAD, ROAD, ROAD } },
+                { TILE_ROAD_T_S, new List<int>() { ROAD, GRASS, ROAD, ROAD } },
+                { TILE_ROAD_T_W, new List<int>() { ROAD, ROAD, GRASS, ROAD } },
+                { TILE_HOUSE,new List<int>(){FOREST,FOREST,FOREST,FOREST} },
             };
             tileWeights = new Dictionary<int, int>()
             {
@@ -131,6 +155,17 @@ namespace Project1
                 {TILE_FOREST_ES2,3 },
                 {TILE_FOREST_SW2,3 },
                 {TILE_FOREST_WN2,3 },
+                { TILE_ROAD_H, 10 },
+                { TILE_ROAD_V, 10 },
+                { TILE_ROAD_NE, 1 },
+                { TILE_ROAD_ES, 1 },
+                { TILE_ROAD_SW, 1 },    
+                { TILE_ROAD_WN, 1 },
+                { TILE_ROAD_T_N, 1 },
+                { TILE_ROAD_T_E, 1 },
+                { TILE_ROAD_T_S, 1 },
+                { TILE_ROAD_T_W, 1 },
+                { TILE_HOUSE, 5 },
             };
         }
     }
@@ -140,6 +175,8 @@ namespace Project1
         private SpriteBatch _spriteBatch;
         private SpriteFont font;
         private Texture2D texture;
+        private Texture2D texture2;
+        private Texture2D texture3;
         private RenderTarget2D renderTarget;
         private static bool previousTKeyState;
         private static World world;
@@ -168,6 +205,8 @@ namespace Project1
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             texture = Content.Load<Texture2D>("Grass");
+            texture2 = Content.Load<Texture2D>("PurpleChapels");
+            texture3 = Content.Load<Texture2D>("PurpleShip");
             font = Content.Load<SpriteFont>("DefaultFont");
         }
 
@@ -184,7 +223,7 @@ namespace Project1
             previousTKeyState = currentTKeyState;
             base.Update(gameTime);
         }
-        private void draw(int x,int y,Texture2D texture, int tilename)
+        private void draw(int x, int y, Texture2D texture, int tilename)
         {
             _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[tilename], Color.White);
         }
@@ -218,7 +257,13 @@ namespace Project1
                         int tile_type = possibilities[0];
                         if (tile_entopy <= 0)
                         {
-                            if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
+                            if (tile_type == 39)
+                            {
+                                draw(x, y, texture, TileDef.GRASS);
+                                draw(x, y, texture2, TileDef.TILE_HOUSE);
+                            }
+                            else if (tile_type == 3 || tile_type >= 29) draw(x, y, texture, TileDef.TILE_CITYROAD);
+                            else if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
                             else if (tile_type == 1 || tile_type >= 5) draw(x, y, texture, TileDef.TILE_GRASS);
                             else if (tile_type == 0) draw(x, y, texture, TileDef.TILE_WATER);
                         }
@@ -273,9 +318,9 @@ namespace Project1
             int lowestEntropy = TileDef.tileRules.Keys.Count;
             Tile tile = null;
             int len = (int)1E5;
-            for(int y = 0; y < sizeY; y++)
+            for (int y = 0; y < sizeY; y++)
             {
-                for(int x = 0; x < sizeX; x++)
+                for (int x = 0; x < sizeX; x++)
                 {
                     int tileEntropy = tileRows[y][x].entropy;
                     if (tileEntropy > 0)
@@ -329,7 +374,7 @@ namespace Project1
     {
         public List<int> possibilities;
         public int entropy;
-        public Dictionary<int,Tile> neighbours;
+        public Dictionary<int, Tile> neighbours;
         public Tile()
         {
             possibilities = TileDef.tileRules.Keys.ToList();
