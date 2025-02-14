@@ -20,7 +20,7 @@ namespace Project1
         public static int TILE_GRASS = 1;
         public static int TILE_FOREST = 2;
         public static int TILE_ROAD = 3;
-        public static int TILE_CITYROAD = 4;
+        public static int TILE_HOUSE = 4;
         public static int TILE_COAST_N = 5;
         public static int TILE_COAST_E = 6;
         public static int TILE_COAST_W = 7;
@@ -55,7 +55,6 @@ namespace Project1
         public static int TILE_ROAD_T_E = 36;
         public static int TILE_ROAD_T_S = 37;
         public static int TILE_ROAD_T_W = 38;
-        public static int TILE_HOUSE = 39;
         //  邊緣類型
         public static int WATER = 0;
         public static int GRASS = 1;
@@ -69,8 +68,7 @@ namespace Project1
         public static int FOREST_S = 9;
         public static int FOREST_W = 10;
         public static int ROAD = 11;
-        public static int BOAT = 12;
-        public static int HOUSE = 13;
+        public static int HOUSE = 12;
         public static Dictionary<int, Rectangle> tileSprites;
         public static Dictionary<int, List<int>> tileRules;
         public static Dictionary<int, int> tileWeights;
@@ -82,8 +80,7 @@ namespace Project1
                 {TILE_GRASS,new Rectangle(16,0,16,16) },
                 {TILE_FOREST,new Rectangle(32,0,16,16) },
                 {TILE_ROAD,new Rectangle(48,0,16,16) },
-                {TILE_CITYROAD,new Rectangle(64,0,16,16) },
-                {TILE_HOUSE,new Rectangle(0,0,16,16) },
+                {TILE_HOUSE,new Rectangle(0,16,16,16) },
             };
             tileRules = new Dictionary<int, List<int>>()
             {
@@ -159,7 +156,7 @@ namespace Project1
                 { TILE_ROAD_V, 10 },
                 { TILE_ROAD_NE, 1 },
                 { TILE_ROAD_ES, 1 },
-                { TILE_ROAD_SW, 1 },    
+                { TILE_ROAD_SW, 1 },
                 { TILE_ROAD_WN, 1 },
                 { TILE_ROAD_T_N, 1 },
                 { TILE_ROAD_T_E, 1 },
@@ -176,7 +173,6 @@ namespace Project1
         private SpriteFont font;
         private Texture2D texture;
         private Texture2D texture2;
-        private Texture2D texture3;
         private RenderTarget2D renderTarget;
         private static bool previousTKeyState;
         private static World world;
@@ -206,7 +202,6 @@ namespace Project1
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             texture = Content.Load<Texture2D>("Grass");
             texture2 = Content.Load<Texture2D>("PurpleChapels");
-            texture3 = Content.Load<Texture2D>("PurpleShip");
             font = Content.Load<SpriteFont>("DefaultFont");
         }
 
@@ -248,7 +243,6 @@ namespace Project1
                         List<int> possibilities = world.getPossibilities(y, x);
                         if (possibilities.Count == 0)
                         {
-                            msg = "RUNNING ERROR! Press T restart";
                             restart = true;
                             GraphicsDevice.SetRenderTarget(null);
                             _spriteBatch.End();
@@ -257,12 +251,12 @@ namespace Project1
                         int tile_type = possibilities[0];
                         if (tile_entopy <= 0)
                         {
-                            if (tile_type == 39)
+                            if (tile_type == 4)
                             {
                                 draw(x, y, texture, TileDef.GRASS);
                                 draw(x, y, texture2, TileDef.TILE_HOUSE);
                             }
-                            else if (tile_type == 3 || tile_type >= 29) draw(x, y, texture, TileDef.TILE_CITYROAD);
+                            else if (tile_type == 3 || tile_type >= 29) draw(x, y, texture, TileDef.TILE_ROAD);
                             else if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
                             else if (tile_type == 1 || tile_type >= 5) draw(x, y, texture, TileDef.TILE_GRASS);
                             else if (tile_type == 0) draw(x, y, texture, TileDef.TILE_WATER);
