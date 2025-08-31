@@ -125,13 +125,13 @@ namespace Project1
             };
             tileWeights = new Dictionary<int, int>()
             {
-                {TILE_WATER,5 },
+                {TILE_WATER,30 },
                 {TILE_GRASS,16},
                 {TILE_FOREST,5 },
-                {TILE_COAST_N,5 },
-                {TILE_COAST_E,5 },
-                {TILE_COAST_S,5 },
-                {TILE_COAST_W,5 },
+                {TILE_COAST_N,12 },
+                {TILE_COAST_E,12 },
+                {TILE_COAST_S,12 },
+                {TILE_COAST_W,12 },
                 {TILE_COAST_NE,3 },
                 {TILE_COAST_ES,3 },
                 {TILE_COAST_SW,3 },
@@ -152,16 +152,16 @@ namespace Project1
                 {TILE_FOREST_ES2,3 },
                 {TILE_FOREST_SW2,3 },
                 {TILE_FOREST_WN2,3 },
-                { TILE_ROAD_H, 10 },
-                { TILE_ROAD_V, 10 },
-                { TILE_ROAD_NE, 1 },
-                { TILE_ROAD_ES, 1 },
-                { TILE_ROAD_SW, 1 },
-                { TILE_ROAD_WN, 1 },
-                { TILE_ROAD_T_N, 1 },
-                { TILE_ROAD_T_E, 1 },
-                { TILE_ROAD_T_S, 1 },
-                { TILE_ROAD_T_W, 1 },
+                { TILE_ROAD_H, 40 },
+                { TILE_ROAD_V, 40 },
+                { TILE_ROAD_NE, 4 },
+                { TILE_ROAD_ES, 4 },
+                { TILE_ROAD_SW, 4 },
+                { TILE_ROAD_WN, 4 },
+                { TILE_ROAD_T_N, 2 },
+                { TILE_ROAD_T_E, 2 },
+                { TILE_ROAD_T_S, 2 },
+                { TILE_ROAD_T_W, 2 },
                 { TILE_HOUSE, 5 },
             };
         }
@@ -173,14 +173,27 @@ namespace Project1
         private SpriteFont font;
         private Texture2D texture;
         private Texture2D texture2;
+        private Texture2D pixel;
         private RenderTarget2D renderTarget;
+
+        private World previewWorld;
+        private RenderTarget2D previewRenderTarget;
+        private int previewSizeX = 40;
+        private int previewSizeY = 24;
+
+        private float transitionTimer = 0f;
+        private float transitionDuration = 0.6f;
+        private bool transitioning = false;
+        private bool fadeToPlay = false;
         private static bool previousTKeyState;
+        private static bool previousStartKeyState;
+        private enum GameState { Title, Playing }
+        private static GameState gameState;
         private static World world;
         private static bool restart;
-        private static string msg;
-        public static int sizeX = 50;
-        public static int sizeY = 30;
-        private static int TILESIZE = 16;
+        public static int sizeX = 80;
+        public static int sizeY = 48;
+        private static int TILESIZE = 32;
         public Game1()
         {
             _graphics = new GraphicsDeviceManager(this);
@@ -189,11 +202,14 @@ namespace Project1
         }
         protected override void Initialize()
         {
-            Window.Title = "Wave Function Collapse";
-            msg = "Press T restart";
-            world = new World(sizeY, sizeX);
+            Window.Title = "演算法演示";
+
+            gameState = GameState.Title;
             restart = false;
-            renderTarget = new RenderTarget2D(GraphicsDevice, sizeX * TILESIZE, sizeY * TILESIZE);
+
+            _graphics.PreferredBackBufferWidth = sizeX * TILESIZE;
+            _graphics.PreferredBackBufferHeight = sizeY * TILESIZE;
+            _graphics.ApplyChanges();
             base.Initialize();
         }
 
@@ -203,6 +219,14 @@ namespace Project1
             texture = Content.Load<Texture2D>("Grass");
             texture2 = Content.Load<Texture2D>("PurpleChapels");
             font = Content.Load<SpriteFont>("DefaultFont");
+
+            pixel = new Texture2D(GraphicsDevice, 1, 1);
+            pixel.SetData(new[] { Color.White });
+
+            previewSizeX = Math.Min(previewSizeX, sizeX);
+            previewSizeY = Math.Min(previewSizeY, sizeY);
+            previewWorld = new World(previewSizeY, previewSizeX, false);
+            previewRenderTarget = new RenderTarget2D(GraphicsDevice, previewSizeX * TILESIZE, previewSizeY * TILESIZE);
         }
 
         protected override void Update(GameTime gameTime)
@@ -211,65 +235,187 @@ namespace Project1
                 Exit();
             KeyboardState keyboardState = Keyboard.GetState();
             bool currentTKeyState = keyboardState.IsKeyDown(Keys.T);
-            if (currentTKeyState && !previousTKeyState)
+            bool currentStartKeyState = keyboardState.IsKeyDown(Keys.Space) || keyboardState.IsKeyDown(Keys.Enter);
+
+
+            if (currentStartKeyState && !previousStartKeyState && gameState == GameState.Title)
+            {
+
+                world = new World(sizeY, sizeX, true);
+                renderTarget = new RenderTarget2D(GraphicsDevice, sizeX * TILESIZE, sizeY * TILESIZE);
+                restart = false;
+
+                transitioning = true;
+                fadeToPlay = true;
+                transitionTimer = 0f;
+                previousTKeyState = false;
+                previousStartKeyState = false;
+            }
+            previousStartKeyState = currentStartKeyState;
+
+
+            if (gameState == GameState.Playing && currentTKeyState && !previousTKeyState)
             {
                 restart = true;
             }
             previousTKeyState = currentTKeyState;
+
+            if (gameState == GameState.Title && !transitioning)
+            {
+                previewWorld.waveFunctionCollapse();
+            }
+
+
+            if (transitioning)
+            {
+                transitionTimer += (float)gameTime.ElapsedGameTime.TotalSeconds;
+                if (fadeToPlay && transitionTimer >= transitionDuration)
+                {
+
+                    gameState = GameState.Playing;
+                    fadeToPlay = false;
+                    transitionTimer = 0f;
+                }
+                else if (!fadeToPlay && transitionTimer >= transitionDuration)
+                {
+
+                    transitioning = false;
+                    transitionTimer = 0f;
+                }
+            }
             base.Update(gameTime);
         }
         private void draw(int x, int y, Texture2D texture, int tilename)
         {
-            _spriteBatch.Draw(texture, new Vector2(x * 16, y * 16), TileDef.tileSprites[tilename], Color.White);
+            _spriteBatch.Draw(texture, new Rectangle(x * TILESIZE, y * TILESIZE, TILESIZE, TILESIZE), TileDef.tileSprites[tilename], Color.White);
         }
+
+        private void RenderWorld(World w, RenderTarget2D rt)
+        {
+            GraphicsDevice.SetRenderTarget(rt);
+            _spriteBatch.Begin();
+            GraphicsDevice.Clear(Color.DarkSlateBlue);
+            for (int y = 0; y < (w == world ? sizeY : previewSizeY); y++)
+            {
+                for (int x = 0; x < (w == world ? sizeX : previewSizeX); x++)
+                {
+                    int tile_entopy = w.getEntropy(y, x);
+                    List<int> possibilities = w.getPossibilities(y, x);
+                    if (possibilities.Count == 0)
+                    {
+                        _spriteBatch.Draw(pixel, new Rectangle(x * TILESIZE, y * TILESIZE, TILESIZE, TILESIZE), Color.Black);
+                        continue;
+                    }
+                    int tile_type = possibilities[0];
+                    if (tile_entopy <= 0)
+                    {
+                        if (tile_type == 4)
+                        {
+                            draw(x, y, texture, TileDef.GRASS);
+                            draw(x, y, texture2, TileDef.TILE_HOUSE);
+                        }
+                        else if (tile_type == 3 || tile_type >= 29) draw(x, y, texture, TileDef.TILE_ROAD);
+                        else if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
+                        else if (tile_type == 1 || tile_type >= 5) draw(x, y, texture, TileDef.TILE_GRASS);
+                        else if (tile_type == 0) draw(x, y, texture, TileDef.TILE_WATER);
+                    }
+                    else
+                    {
+                        _spriteBatch.Draw(pixel, new Rectangle(x * TILESIZE, y * TILESIZE, TILESIZE, TILESIZE), Color.Black);
+                        string e = tile_entopy.ToString();
+                        Vector2 size = font.MeasureString(e);
+                        Vector2 pos = new Vector2(x * TILESIZE + (TILESIZE - size.X) / 2f, y * TILESIZE + (TILESIZE - size.Y) / 2f);
+                        _spriteBatch.DrawString(font, e, pos, Color.White);
+                    }
+                }
+            }
+            _spriteBatch.End();
+            GraphicsDevice.SetRenderTarget(null);
+        }
+
         protected override void Draw(GameTime gameTime)
         {
+            // 進入畫面 / 標題
+            if (gameState == GameState.Title)
+            {
+                // 將預覽世界渲染到預覽目標
+                RenderWorld(previewWorld, previewRenderTarget);
+
+                GraphicsDevice.Clear(Color.DeepSkyBlue);
+                _spriteBatch.Begin();
+                // 繪製預覽（縮放並置中，右側保留資訊面板空間）
+                int screenW = _graphics.PreferredBackBufferWidth;
+                int screenH = _graphics.PreferredBackBufferHeight;
+                int panelWidth = Math.Min(360, screenW / 3);
+                int contentW = screenW - panelWidth - 40;
+                float scale = Math.Min((contentW * 0.9f) / (previewSizeX * TILESIZE), (screenH * 0.8f) / (previewSizeY * TILESIZE));
+                Vector2 destSize = new Vector2(previewSizeX * TILESIZE * scale, previewSizeY * TILESIZE * scale);
+                Vector2 destPos = new Vector2((contentW - destSize.X) / 2f + 20, (screenH - destSize.Y) / 2f - 20);
+                _spriteBatch.Draw(previewRenderTarget, new Rectangle((int)destPos.X, (int)destPos.Y, (int)destSize.X, (int)destSize.Y), Color.White);
+                // 標題（左上）
+                _spriteBatch.DrawString(font, "algorithm preview", new Vector2(32, 24), Color.Black);
+
+                // 繪製側欄（半透明）
+                int panelX = screenW - panelWidth - 20;
+                int panelY = 40;
+                int panelH = Math.Min(screenH - 80, 420);
+                _spriteBatch.Draw(pixel, new Rectangle(panelX, panelY, panelWidth, panelH), Color.Black * 0.7f);
+                // 面板文字（白色）
+                int textX = panelX + 16;
+                int textY = panelY + 16;
+                int lineHeight = (int)font.MeasureString("T").Y + 6;
+                _spriteBatch.DrawString(font, "Controls:", new Vector2(textX, textY), Color.White);
+                _spriteBatch.DrawString(font, "  Space / Enter - Start", new Vector2(textX, textY + lineHeight), Color.White);
+                _spriteBatch.DrawString(font, "  T - Restart (in game)", new Vector2(textX, textY + lineHeight * 2), Color.White);
+                _spriteBatch.DrawString(font, "  Esc - Quit", new Vector2(textX, textY + lineHeight * 3), Color.White);
+                // 資訊
+                _spriteBatch.DrawString(font, "", new Vector2(textX, textY + lineHeight * 4), Color.White);
+                _spriteBatch.DrawString(font, $"Preview size: {previewSizeX} x {previewSizeY}", new Vector2(textX, textY + lineHeight * 5), Color.White);
+                _spriteBatch.DrawString(font, $"Main grid: {sizeX} x {sizeY}", new Vector2(textX, textY + lineHeight * 6), Color.White);
+                // 圖例
+                _spriteBatch.DrawString(font, "", new Vector2(textX, textY + lineHeight * 7), Color.White);
+                _spriteBatch.DrawString(font, "Legend:", new Vector2(textX, textY + lineHeight * 8), Color.White);
+                // 小圖例：已解析格與熵格
+                int legendY = textY + lineHeight * 9;
+                // 已解析樣例（草地）
+                _spriteBatch.Draw(texture, new Rectangle(textX, legendY, TILESIZE, TILESIZE), TileDef.tileSprites[TileDef.TILE_GRASS], Color.White);
+                _spriteBatch.DrawString(font, " resolved", new Vector2(textX + TILESIZE + 8, legendY + 4), Color.White);
+                // 熵格樣例（黑色方塊）
+                _spriteBatch.Draw(pixel, new Rectangle(textX, legendY + lineHeight, TILESIZE, TILESIZE), Color.Black);
+                _spriteBatch.DrawString(font, " entropy (remaining)", new Vector2(textX + TILESIZE + 8, legendY + lineHeight + 4), Color.White);
+                _spriteBatch.End();
+                // 若有轉場則畫遮罩
+                if (transitioning)
+                {
+                    float alpha = fadeToPlay ? MathHelper.Clamp(transitionTimer / transitionDuration, 0f, 1f) : MathHelper.Clamp(1f - (transitionTimer / transitionDuration), 0f, 1f);
+                    _spriteBatch.Begin();
+                    _spriteBatch.Draw(pixel, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.Black * alpha);
+                    _spriteBatch.End();
+                }
+                base.Draw(gameTime);
+                return;
+            }
+
             if (restart)
             {
-                msg = "Press T restart";
                 world = new World(sizeY, sizeX);
                 restart = false;
             }
-            if (world.waveFunctionCollapse())
-            {
-                GraphicsDevice.SetRenderTarget(renderTarget);
-                _spriteBatch.Begin();
-                GraphicsDevice.Clear(Color.CornflowerBlue);
-                for (int y = 0; y < sizeY; y++)
-                {
-                    for (int x = 0; x < sizeX; x++)
-                    {
-                        int tile_entopy = world.getEntropy(y, x);
-                        List<int> possibilities = world.getPossibilities(y, x);
-                        if (possibilities.Count == 0)
-                        {
-                            restart = true;
-                            GraphicsDevice.SetRenderTarget(null);
-                            _spriteBatch.End();
-                            return;
-                        }
-                        int tile_type = possibilities[0];
-                        if (tile_entopy <= 0)
-                        {
-                            if (tile_type == 4)
-                            {
-                                draw(x, y, texture, TileDef.GRASS);
-                                draw(x, y, texture2, TileDef.TILE_HOUSE);
-                            }
-                            else if (tile_type == 3 || tile_type >= 29) draw(x, y, texture, TileDef.TILE_ROAD);
-                            else if (tile_type == 2 || tile_type >= 17) draw(x, y, texture, TileDef.TILE_FOREST);
-                            else if (tile_type == 1 || tile_type >= 5) draw(x, y, texture, TileDef.TILE_GRASS);
-                            else if (tile_type == 0) draw(x, y, texture, TileDef.TILE_WATER);
-                        }
-                    }
-                }
-                _spriteBatch.End();
-                GraphicsDevice.SetRenderTarget(null);
-            }
+            // 主世界：每幀進行一個塌縮步驟
+            world.waveFunctionCollapse();
+            // 將主世界渲染到目標
+            RenderWorld(world, renderTarget);
             _spriteBatch.Begin();
             _spriteBatch.Draw(renderTarget, new Vector2(0, 0), Color.White);
-            _spriteBatch.DrawString(font, $"{msg}", new Vector2(0, 0), Color.Black);
             _spriteBatch.End();
+            // 若有轉場則畫遮罩
+            if (transitioning)
+            {
+                float alpha = fadeToPlay ? MathHelper.Clamp(transitionTimer / transitionDuration, 0f, 1f) : MathHelper.Clamp(1f - (transitionTimer / transitionDuration), 0f, 1f);
+                _spriteBatch.Begin();
+                _spriteBatch.Draw(pixel, new Rectangle(0, 0, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight), Color.Black * alpha);
+                _spriteBatch.End();
+            }
             base.Draw(gameTime);
         }
     }
@@ -278,7 +424,7 @@ namespace Project1
         private int sizeX;
         private int sizeY;
         private List<List<Tile>> tileRows;
-        public World(int sizeY, int sizeX)
+    public World(int sizeY, int sizeX, bool placeRoadSeeds = true)
         {
             this.sizeY = sizeY;
             this.sizeX = sizeX;
@@ -302,6 +448,43 @@ namespace Project1
                     if (x < sizeX - 1) tile.neighbours[TileDef.EAST] = tileRows[y][x + 1];
                     if (y < sizeY - 1) tile.neighbours[TileDef.SOUTH] = tileRows[y + 1][x];
                     if (x > 0) tile.neighbours[TileDef.WEST] = tileRows[y][x - 1];
+                }
+            }
+            if (placeRoadSeeds)
+            {
+                PlaceRoadSeeds();
+            }
+        }
+        private void PlaceRoadSeeds()
+        {
+            int hCount = Math.Max(1, sizeY / 12);
+            int vCount = Math.Max(1, sizeX / 16);
+
+            for (int i = 0; i < hCount; i++)
+            {
+                int row = TileDef.getRandom(sizeY);
+                for (int x = 0; x < sizeX; x++)
+                {
+                    if (TileDef.getRandom(100) < 85)
+                    {
+                        Tile t = tileRows[row][x];
+                        t.possibilities = new List<int>() { TileDef.TILE_ROAD_H };
+                        t.entropy = 0;
+                    }
+                }
+            }
+
+            for (int i = 0; i < vCount; i++)
+            {
+                int col = TileDef.getRandom(sizeX);
+                for (int y = 0; y < sizeY; y++)
+                {
+                    if (TileDef.getRandom(100) < 85)
+                    {
+                        Tile t = tileRows[y][col];
+                        t.possibilities = new List<int>() { TileDef.TILE_ROAD_V };
+                        t.entropy = 0;
+                    }
                 }
             }
         }
@@ -377,15 +560,83 @@ namespace Project1
         }
         public void collapse()
         {
-            int randomValue = TileDef.getRandom(possibilities.Select(possibility => TileDef.tileWeights[possibility]).Sum());
-            int cumulativeWeight = 0;
-            int selectedPossibility = possibilities.First();
-            foreach (var possibility in possibilities)
+            List<int> orderedPoss = possibilities.ToList();
+            List<int> adjustedWeights = new List<int>();
+            foreach (var poss in orderedPoss)
             {
-                cumulativeWeight += TileDef.tileWeights[possibility];
+                int baseWeight = TileDef.tileWeights.ContainsKey(poss) ? TileDef.tileWeights[poss] : 1;
+                int matchCount = 0;
+                bool forbiddenByRoadAdjacency = false;
+                foreach (var kv in neighbours)
+                {
+                    int dir = kv.Key;
+                    Tile neigh = kv.Value;
+                    if (neigh != null && neigh.entropy == 0 && neigh.possibilities.Count == 1)
+                    {
+                        int neighTile = neigh.possibilities[0];
+                        int opposite = (dir + 2) % 4;
+                        if (TileDef.tileRules.ContainsKey(poss) && TileDef.tileRules.ContainsKey(neighTile))
+                        {
+                            bool possIsRoad = poss >= TileDef.TILE_ROAD_H && poss <= TileDef.TILE_ROAD_T_W;
+                            bool neighIsRoad = neighTile >= TileDef.TILE_ROAD_H && neighTile <= TileDef.TILE_ROAD_T_W;
+                            if (possIsRoad && neighIsRoad)
+                            {
+                                if (!(TileDef.tileRules[poss][dir] == TileDef.ROAD && TileDef.tileRules[neighTile][opposite] == TileDef.ROAD))
+                                {
+                                    forbiddenByRoadAdjacency = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    matchCount++;
+                                }
+                            }
+                            else
+                            {
+                                if (TileDef.tileRules[poss][dir] == TileDef.tileRules[neighTile][opposite])
+                                {
+                                    matchCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+                    if (forbiddenByRoadAdjacency)
+                    {
+                        adjustedWeights.Add(0);
+                    }
+                else
+                {
+                    int multiplier = 1 + 3 * matchCount;
+                    if (poss == TileDef.TILE_WATER)
+                    {
+                        multiplier = 1 + 6 * matchCount;
+                    }
+                    int adj = Math.Max(1, baseWeight * multiplier);
+                    adjustedWeights.Add(adj);
+                }
+            }
+
+            int total = adjustedWeights.Sum();
+            if (total == 0)
+            {
+                adjustedWeights.Clear();
+                foreach (var poss in orderedPoss)
+                {
+                    int baseWeight = TileDef.tileWeights.ContainsKey(poss) ? TileDef.tileWeights[poss] : 1;
+                    adjustedWeights.Add(Math.Max(1, baseWeight));
+                }
+                total = adjustedWeights.Sum();
+            }
+            int randomValue = TileDef.getRandom(total);
+            int cumulativeWeight = 0;
+            int selectedPossibility = orderedPoss.First();
+            for (int i = 0; i < orderedPoss.Count; i++)
+            {
+                cumulativeWeight += adjustedWeights[i];
                 if (randomValue < cumulativeWeight)
                 {
-                    selectedPossibility = possibility;
+                    selectedPossibility = orderedPoss[i];
                     break;
                 }
             }
