@@ -17,9 +17,22 @@ namespace Project1
 
         public void SetPossibilities(List<int> newPossibilities)
         {
-            possibilities = new List<int>(newPossibilities);
-            // If a single possibility remains, consider the tile collapsed (entropy = 0)
-            entropy = (possibilities.Count == 1) ? 0 : possibilities.Count;
+            possibilities = newPossibilities.ToList();
+            // If empty, entropy = -1 to indicate contradiction
+            // If single possibility, entropy = 0 (collapsed)
+            // Otherwise, entropy = count of possibilities
+            if (possibilities.Count == 0)
+            {
+                entropy = -1;  // Contradiction state
+            }
+            else if (possibilities.Count == 1)
+            {
+                entropy = 0;   // Collapsed state
+            }
+            else
+            {
+                entropy = possibilities.Count;
+            }
         }
 
         public void Collapse()
@@ -127,7 +140,19 @@ namespace Project1
                         reduced = true;
                     }
                 }
-                entropy = possibilities.Count;
+                // Update entropy after constraint
+                if (possibilities.Count == 0)
+                {
+                    entropy = -1;  // Contradiction
+                }
+                else if (possibilities.Count == 1)
+                {
+                    entropy = 0;   // Collapsed
+                }
+                else
+                {
+                    entropy = possibilities.Count;
+                }
             }
             return reduced;
         }

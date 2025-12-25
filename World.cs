@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 namespace Project1
 {
     public class World
@@ -6,14 +7,17 @@ namespace Project1
         private int sizeX;
         private int sizeY;
         private List<List<Tile>> tileRows;
+        private bool hasContradiction;
 
         public int SizeX => sizeX;
         public int SizeY => sizeY;
+        public bool HasContradiction => hasContradiction;
 
-        public World(int sizeY, int sizeX, bool placeRoadSeeds = true)
+        public World(int sizeY, int sizeX, bool forceInit = false)
         {
             this.sizeY = sizeY;
             this.sizeX = sizeX;
+            this.hasContradiction = false;
             tileRows = new List<List<Tile>>();
             for (int y = 0; y < sizeY; y++)
             {
@@ -36,49 +40,25 @@ namespace Project1
                     if (x > 0) tile.neighbours[TileDef.WEST] = tileRows[y][x - 1];
                 }
             }
-            if (placeRoadSeeds)
-            {
-                PlaceRoadSeeds();
-            }
         }
-
-        private void PlaceRoadSeeds()
-        {
-            int hCount = System.Math.Max(1, sizeY / 12);
-            int vCount = System.Math.Max(1, sizeX / 16);
-
-            for (int i = 0; i < hCount; i++)
-            {
-                int row = TileDef.getRandom(sizeY);
-                for (int x = 0; x < sizeX; x++)
-                {
-                    if (TileDef.getRandom(100) < 85)
-                    {
-                        Tile t = tileRows[row][x];
-                        t.SetPossibilities(new List<int>() { TileDef.TILE_ROAD_H });
-                    }
-                }
-            }
-
-            for (int i = 0; i < vCount; i++)
-            {
-                int col = TileDef.getRandom(sizeX);
-                for (int y = 0; y < sizeY; y++)
-                {
-                    if (TileDef.getRandom(100) < 85)
-                    {
-                        Tile t = tileRows[y][col];
-                        t.SetPossibilities(new List<int>() { TileDef.TILE_ROAD_V });
-                    }
-                }
-            }
-        }
-
         public int GetEntropy(int y, int x) => tileRows[y][x].entropy;
         public List<int> GetPossibilities(int y, int x) => tileRows[y][x].possibilities;
 
         public Tile GetTileLowestEntropy()
         {
+            // Check for contradictions first
+            for (int y = 0; y < sizeY; y++)
+            {
+                for (int x = 0; x < sizeX; x++)
+                {
+                    if (tileRows[y][x].entropy == -1)
+                    {
+                        hasContradiction = true;
+                        return null;
+                    }
+                }
+            }
+
             int lowestEntropy = TileDef.tileRules.Keys.Count;
             Tile tile = null;
             int len = (int)1E5;
@@ -109,8 +89,18 @@ namespace Project1
 
         public bool WaveFunctionCollapse()
         {
+            if (hasContradiction)
+            {
+                return false;
+            }
+
             Tile tileToCollapse = GetTileLowestEntropy();
-            if (tileToCollapse == null) return false;
+            if (tileToCollapse == null)
+            {
+                // Either complete or contradiction
+                return false;
+            }
+
             tileToCollapse.Collapse();
             Stack<Tile> stack = new Stack<Tile>();
             stack.Push(tileToCollapse);
@@ -118,13 +108,29 @@ namespace Project1
             {
                 Tile tile = stack.Pop();
                 List<int> tilePossibilities = tile.possibilities;
-                List<int> directions = new List<int>(tile.neighbours.Keys);
+                
+                // Check if current tile has contradiction
+                if (tile.entropy == -1)
+                {
+                    hasContradiction = true;
+                    return false;
+                }
+
+                List<int> directions = tile.neighbours.Keys.ToList();
                 foreach (int direction in directions)
                 {
                     Tile neighbour = tile.neighbours[direction];
-                    if (neighbour.entropy != 0)
+                    if (neighbour.entropy > 0)  // Only constrain uncollapsed tiles
                     {
                         bool reduced = neighbour.Constrain(tilePossibilities, direction);
+                        
+                        // Check if constraint caused contradiction
+                        if (neighbour.entropy == -1)
+                        {
+                            hasContradiction = true;
+                            return false;
+                        }
+                        
                         if (reduced)
                         {
                             stack.Push(neighbour);

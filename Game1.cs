@@ -43,7 +43,7 @@ namespace Project1
 
         protected override void Initialize()
         {
-            Window.Title = "演算法演示";
+            Window.Title = "約束式生成演算法";
 
             gameState = GameState.Title;
             restart = false;
@@ -66,7 +66,7 @@ namespace Project1
 
             previewSizeX = Math.Min(previewSizeX, sizeX);
             previewSizeY = Math.Min(previewSizeY, sizeY);
-            previewWorld = new World(previewSizeY, previewSizeX, false);
+            previewWorld = new World(previewSizeY, previewSizeX);
             previewRenderTarget = new RenderTarget2D(GraphicsDevice, previewSizeX * TILESIZE, previewSizeY * TILESIZE);
 
             _renderer = new WorldRenderer(_spriteBatch, font, texture, texture2, pixel, TILESIZE);
@@ -85,7 +85,7 @@ namespace Project1
 
             if (startPressed && gameState == GameState.Title)
             {
-                world = new World(sizeY, sizeX, true);
+                world = new World(sizeY, sizeX);
                 renderTarget = new RenderTarget2D(GraphicsDevice, sizeX * TILESIZE, sizeY * TILESIZE);
                 restart = false;
 
@@ -129,7 +129,7 @@ namespace Project1
             {
                 _renderer.RenderTo(GraphicsDevice, previewWorld, previewRenderTarget, previewSizeX, previewSizeY);
 
-                GraphicsDevice.Clear(Color.DeepSkyBlue);
+                GraphicsDevice.Clear(Color.Black);
                 _spriteBatch.Begin();
 
                 int screenW = _graphics.PreferredBackBufferWidth;
@@ -145,7 +145,7 @@ namespace Project1
                 int panelX = screenW - panelWidth - 20;
                 int panelY = 40;
                 int panelH = Math.Min(screenH - 80, 420);
-                _spriteBatch.Draw(pixel, new Rectangle(panelX, panelY, panelWidth, panelH), Color.Black * 0.7f);
+                _spriteBatch.Draw(pixel, new Rectangle(panelX, panelY, panelWidth, panelH), Color.DarkOliveGreen * 0.7f);
                 int textX = panelX + 16;
                 int textY = panelY + 16;
                 int lineHeight = (int)font.MeasureString("T").Y + 6;
